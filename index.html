@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Şakir'in Kalbi</title>
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- p5.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    canvas {
+      display: none;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4, #fbc2eb);
+      color: #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      z-index: 10;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .modal h1 {
+      font-size: 2em;
+      margin-bottom: 30px;
+      line-height: 1.4;
+      color: #60012b;
+      text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 12px 25px;
+      font-size: 1.2em;
+      cursor: pointer;
+      border: none;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      transition: all 0.3s ease;
+    }
+
+    .yes {
+      background-color: #ff4d88;
+      color: white;
+    }
+
+    .yes:hover {
+      background-color: #e6005c;
+    }
+
+    .no {
+      background-color: #444;
+      color: white;
+    }
+
+    .no:hover {
+      background-color: #222;
+    }
+
+    #yesBtn {
+      transition: all 0.3s ease;
+    }
+
+    #loveMessage {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 2em;
+      opacity: 0;
+      transition: opacity 2s ease;
+      z-index: 5;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<!-- GİRİŞ MODALI -->
+<div class="modal" id="intro">
+  <h1>💬 Eğer bu çocuktan (Şakir’den) hoşlanıyorsan<br>bu hediyeyi görebilirsin.<br><br>Hoşlanıyor musun?</h1>
+  <div class="btn-group">
+    <button class="yes" id="yesBtn" onclick="startApp()">Evet 💗</button>
+    <button class="no" onclick="deny()">Hayır 🙈</button>
+  </div>
+</div>
+
+<!-- KALP AÇILDIKTAN SONRAKİ MESAJ -->
+<div id="loveMessage">Bu kalp artık senin için atıyor 💖</div>
+
+<!-- MÜZİK PLAYER (SENİN DOSYAN) -->
+<audio id="bgMusic" src="sarki.mp3" loop></audio>
+
+<script>
+let heartPoints = [];
+let particles = [];
+let numPoints = 300;
+let state = "forming";
+let waitStart = 0;
+let waitDuration = 3000;
+let yesSize = 1;
+
+function startApp() {
+  document.getElementById("intro").style.display = "none";
+  document.querySelector("canvas").style.display = "block";
+  document.getElementById("loveMessage").style.opacity = "1";
+
+  const music = document.getElementById("bgMusic");
+  music.play().catch(e => {
+    console.log("Müzik başlatılamadı:", e);
+  });
+
+  setup();
+  loop();
+}
+
+function deny() {
+  yesSize += 0.2;
+  const yesBtn = document.getElementById("yesBtn");
+  yesBtn.style.transform = `scale(${yesSize})`;
+  alert("Hmm... Tekrar düşün bakalım 😏");
+}
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  background(0);
+  noLoop();
+
+  for (let i = 0; i < numPoints; i++) {
+    let angle = map(i, 0, numPoints, 0, TWO_PI);
+    let x = 16 * pow(sin(angle), 3);
+    let y = -(13 * cos(angle) - 5 * cos(2 * angle) - 2 * cos(3 * angle) - cos(4 * angle));
+    x *= 15;
+    y *= 15;
+
+    heartPoints.push(createVector(width / 2 + x, height / 2 + y));
+    particles.push(new Particle(random(width), random(height), width / 2 + x, height / 2 + y));
+  }
+}
+
+function draw() {
+  background(0, 40);
+
+  for (let p of particles) {
+    p.update();
+    p.show();
+  }
+
+  if (state === "forming" && particles.every(p => p.atTarget())) {
+    state = "waiting";
+    waitStart = millis();
+  }
+
+  if (state === "waiting" && millis() - waitStart > waitDuration) {
+    for (let i = 0; i < particles.length; i++) {
+      particles[i].reset(random(width), random(height));
+    }
+    state = "forming";
+  }
+}
+
+class Particle {
+  constructor(x, y, tx, ty) {
+    this.pos = createVector(x, y);
+    this.target = createVector(tx, ty);
+    this.vel = p5.Vector.random2D();
+    this.acc = createVector(0, 0);
+  }
+
+  atTarget() {
+    return p5.Vector.dist(this.pos, this.target) < 1;
+  }
+
+  reset(x, y) {
+    this.pos = createVector(x, y);
+    this.vel = p5.Vector.random2D();
+  }
+
+  update() {
+    let force = p5.Vector.sub(this.target, this.pos);
+    force.mult(0.02);
+    this.vel.add(force);
+    this.vel.mult(0.92);
+    this.pos.add(this.vel);
+  }
+
+  show() {
+    noStroke();
+    fill(255, 60, 60);
+    ellipse(this.pos.x, this.pos.y, 5);
+  }
+}
+</script>
+
+</body>
+</html>
